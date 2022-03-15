@@ -1,0 +1,186 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<title>地图服务</title>
+<link rel="stylesheet" type="text/css" href="zero.css" />
+<script language="javascript" src="https://webapi.amap.com/maps?v=1.2&key=caaa086bdf5666322fba3baf5a6a2c03"></script>
+</head>
+<body onLoad="mapInit()">
+    <div id="iCenter"></div>
+    <div id="iControlbox">
+        <ul>
+            <li>
+                <button onclick="javascript:addCloudLayer();">云图</button>
+                <button onclick="javascript:cloudSearch();">检索自有酒店数据</button>
+                <button onclick="javascript:clearCloud();">清空云图</button>
+            </li>
+        </ul>
+    </div>
+    <div id="result"></div>
+</body>
+<script language="javascript">
+var mapObj;
+var marker = new Array();
+var windowsArr = new Array();
+var cloudDataLayer;
+var MSearch;
+//初始化地图对象，加载地图
+function mapInit(){
+    mapObj = new AMap.Map("iCenter",{
+    center:new AMap.LngLat(116.397428,39.90923), //地图中心点
+    level:11  //地图显示的比例尺级别
+    });
+    AMap.event.addListener(mapObj,'click',getLnglat); //点击事件
+}
+//鼠标点击，获取经纬度坐标
+function getLnglat(e){
+    var x = e.lnglat.getLng();
+    var y = e.lnglat.getLat();
+    document.getElementById("lnglats").innerHTML = x + "," + y;
+}
+function clearCloud(){
+    cloudDataLayer.setMap(null);
+    mapObj.clearMap();
+    document.getElementById("result").innerHTML = '&nbsp;';
+}
+//添加marker&infowindow
+function addmarker(i, d) {
+    var lngX;
+    var latY;
+    var iName;
+    var iAddress;
+    if(d.location){
+        lngX = d.location.getLng();
+        latY = d.location.getLat();
+    }else{
+        lngX = d._location.getLng();
+        latY = d._location.getLat();
+    }
+    if(d.name){
+        iName = d.name;
+    }else{
+        iName = d._name;
+    }
+    if(d.name){
+        iAddress = d.address;
+    }else{
+        iAddress = d._address;
+    }
+    var markerOption = {
+        map:mapObj,
+        icon:"http://webapi.amap.com/images/" + (i + 1) + ".png",
+        position:new AMap.LngLat(lngX, latY)
+    };
+    var mar = new AMap.Marker(markerOption);
+    marker.push(new AMap.LngLat(lngX, latY));
+
+    var infoWindow = new AMap.InfoWindow({
+        content:"<h3><font color=\"#00a6ac\">" + (i + 1) + ". " + iName + "</font></h3>" + TipContents(d.type, iAddress, d.tel),
+        size:new AMap.Size(300, 0),
+        autoMove:true,
+        offset:new AMap.Pixel(0,-30)
+    });
+    windowsArr.push(infoWindow);
+    var aa = function (e) {infoWindow.open(mapObj, mar.getPosition());};
+    AMap.event.addListener(mar, "click", aa);
+}
+//回调函数
+function Search_CallBack(data) {
+    var resultStr = "";
+    var poiArr = data.poiList.pois;
+    var resultCount = poiArr.length;
+    for (var i = 0; i < resultCount; i++) {
+        resultStr += "<div id='divid" + (i + 1) + "' οnmοuseοver='openMarkerTipById1(" + i + ",this)' οnmοuseοut='onmouseout_MarkerStyle(" + (i + 1) + ",this)' style=\"font-size: 12px;cursor:pointer;padding:0px 0 4px 2px; border-bottom:1px solid #C1FFC1;\"><table><tr><td><img src=\"http://webapi.amap.com/images/" + (i + 1) + ".png\"></td>" + "<td><h3><font color=\"#00a6ac\">名称: " + poiArr[i].name + "</font></h3>";
+            resultStr += TipContents(poiArr[i].type, poiArr[i].address, poiArr[i].tel) + "</td></tr></table></div>";
+            addmarker(i, poiArr[i]);
+    }
+    mapObj.setFitView();
+    document.getElementById("result").innerHTML = resultStr;
+}
+function TipContents(type, address, tel) {  //窗体内容
+    if (type == "" || type == "undefined" || type == null || type == " undefined" || typeof type == "undefined") {
+        type = "暂无";
+    }
+    if (address == "" || address == "undefined" || address == null || address == " undefined" || typeof address == "undefined") {
+        address = "暂无";
+    }
+    if (tel == "" || tel == "undefined" || tel == null || tel == " undefined" || typeof address == "tel") {
+        tel = "暂无";
+    }
+    var str = "&nbsp;&nbsp;地址：" + address + "<br />&nbsp;&nbsp;电话：" + tel + " <br />&nbsp;&nbsp;类型：" + type;
+    return str;
+}
+function openMarkerTipById1(pointid, thiss) {  //根据id 打开搜索结果点tip
+    thiss.style.background = '#CAE1FF';
+    windowsArr[pointid].open(mapObj, marker[pointid]);
+}
+function onmouseout_MarkerStyle(pointid, thiss) { //鼠标移开后点样式恢复
+    thiss.style.background = "";
+}
+//输入提示框鼠标滑过时的样式
+function openMarkerTipById(pointid, thiss) {  //根据id打开搜索结果点tip
+    thiss.style.background = '#CAE1FF';
+}
+//输入提示框鼠标移出时的样式
+function onmouseout_MarkerStyle(pointid, thiss) {  //鼠标移开后点样式恢复
+    thiss.style.background = "";
+}
+var yunPoint = new AMap.LngLat(120.169144,30.293164);
+//叠加云数据图层
+function addCloudLayer() {
+    mapObj.setZoomAndCenter(14,yunPoint);
+    //加载云图层插件
+    mapObj.plugin('AMap.CloudDataLayer', function () {
+        var layerOptions = {
+            query:{keywords: ''},
+            clickable:true
+        };
+        cloudDataLayer = new AMap.CloudDataLayer('5358f853e4b01214f369d851', layerOptions); //实例化云图层类
+        cloudDataLayer.setMap(mapObj); //叠加云图层到地图
+        AMap.event.addListener(cloudDataLayer, 'click', function (result) {
+            var clouddata = result.data;
+            var infoWindowYun = new AMap.InfoWindow({
+                content:"<h3><font face=\"微软雅黑\"color=\"#3366FF\">"+ clouddata._name +"</font></h3><hr />地址："+ clouddata._address + "<br />" + "创建时间：" + clouddata._createtime+ "<br />" + "更新时间：" + clouddata._updatetime,
+                size:new AMap.Size(300, 0),
+                autoMove:true,
+                offset:new AMap.Pixel(0,-5)
+            });
+            infoWindowYun.open(mapObj, clouddata._location);
+        });
+    });
+}
+function cloudSearch(){
+    var arr = new Array();
+    var search;
+    var searchOptions = {
+        keywords:'酒店',
+        orderBy:'_id:ASC'
+    };
+    //加载CloudDataSearch服务插件
+    mapObj.plugin(["AMap.CloudDataSearch"], function() {
+        search = new AMap.CloudDataSearch('5358f853e4b01214f369d851', searchOptions); //构造云数据检索类
+        AMap.event.addListener(search, "complete", cloudSearch_CallBack); //查询成功时的回调函数
+        AMap.event.addListener(search, "error", errorInfo); //查询失败时的回调函数
+        search.searchNearBy(yunPoint, 10000); //周边检索
+    });
+}
+function cloudSearch_CallBack(data) {
+    var resultStr="";
+    var resultArr = data.datas;
+    var resultNum = resultArr.length;
+    for (var i = 0; i < resultNum; i++) {
+        resultStr += "<div id='divid" + (i+1) + "' οnmοuseοver='openMarkerTipById1(" + i + ",this)' οnmοuseοut='onmouseout_MarkerStyle(" + (i+1) + ",this)' style=\"font-size: 12px;cursor:pointer;padding:2px 0 4px 2px; border-bottom:1px solid #C1FFC1;\"><table><tr><td><h3><font face=\"微软雅黑\"color=\"#3366FF\">" + (i+1) + "." + resultArr[i]._name + "</font></h3>";
+        resultStr += '地址：' + resultArr[i]._address + '<br/>类型：' + resultArr[i].type + '<br/>ID：' + resultArr[i]._id + "</td></tr></table></div>";
+        addmarker(i, resultArr[i]);
+    }
+    mapObj.setFitView();
+    document.getElementById("result").innerHTML = resultStr;
+}
+//回调函数
+function errorInfo(data) {
+    resultStr = data.info;
+    document.getElementById("result").innerHTML = resultStr;
+}
+</script>
+</html>
